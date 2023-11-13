@@ -143,13 +143,6 @@ func (rf *Raft) PrintLog() {
 
 }
 
-// ////////////////////////////////////////////////////////////////
-//
-//												//
-//	Persistent Storage							//
-//												//
-//
-// ////////////////////////////////////////////////////////////////
 // save Raft's persistent state to stable storage,
 // where it can later be retrieved after a crash and restart.
 // see paper's Figure 2 for a description of what should be persistent.
@@ -268,8 +261,6 @@ func (rf *Raft) CommitController() {
 			<-rf.commitChannel
 		}
 
-		// MIGHT FIND DIFFERENT AMOUNT OF SLEEP TIME
-
 	}
 }
 
@@ -280,7 +271,6 @@ func (rf *Raft) CommitController() {
 // command will ever be committed to the Raft log, since the leader
 // may fail or lose an election. even if the Raft instance has been killed,
 // this function should return gracefully.
-//
 // the first return value is the index that the command will appear at
 // if it's ever committed. the second return value is the current
 // term. the third return value is true if this server believes it is
@@ -324,21 +314,9 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 		color.Cyan("____________________________________________________________________________")
 	}
 
-	// probably never makes sense
-	//go notifyChannel(&rf.commitChannel, &rf.waitingToCommit)
-
 	return index, rf.currentTerm, true
-
-	//return index, term, isLeader
 }
 
-// the service or tester wants to create a Raft server. the ports
-// of all the Raft servers (including this one) are in peers[]. this
-// server's port is peers[me]. all the servers' peers[] arrays
-// have the same order. persister is a place for this server to
-// save its persistent state, and also initially holds the most
-// recent saved state, if any. applyCh is a channel on which the
-// tester or service expects Raft to send ApplyMsg messages.
 // Make() must return quickly, so it should start goroutines
 // for any long-running work.
 func Make(peers []*rpc.Client, me int,

@@ -94,14 +94,11 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 	return (ok == nil)
 }
 
-// The ticker go routine starts a new election if this peer hasn't received
-// heartsbeats recently.
+// The ticker go routine starts a new election if this peer hasn't received heartsbeats recently.
 func (rf *Raft) ticker() {
 	for !rf.killed() {
 
-		// Your code here to check if a leader election should
-		// be started and to randomize sleeping time using
-		// time.Sleep().
+		// check if a leader election should
 		if time.Now().UnixMilli() > rf.last_heard+rf.my_election_Time && rf.state == Follower {
 			if DEBUG_ELECTION {
 				color.Magenta("////////////////////////////////////////////")
@@ -112,9 +109,7 @@ func (rf *Raft) ticker() {
 			rf.startElection()
 
 		} else {
-			//	rf.my_election_Time = rand.Int63n(electionTimeHigh-electionTimeLow) + electionTimeLow
 			rf.waitElectionTime()
-			//
 		}
 	}
 }
@@ -136,8 +131,8 @@ func (rf *Raft) startElection() {
 	rf.vote.Votedfor = rf.me
 	rf.mu.Unlock()
 	rf.persist()
-	// send request vote to all other peers
 
+	// send request vote to all other peers
 	for i, _ := range rf.peers {
 		if i != rf.me {
 			go func(i int) {
@@ -185,9 +180,8 @@ func (rf *Raft) startElection() {
 			rf.mu.Lock()
 			rf.state = Leader
 			rf.isLeader = true
+
 			//leader keeps nextIndex for each follower
-			// index of next log entry to send to that follower
-			// initialized to (1 + leader next index)
 			for i := 0; i < len(rf.peers); i++ {
 				if i != rf.me {
 					rf.nextIndex[i] = len(rf.log) + 1
@@ -201,11 +195,7 @@ func (rf *Raft) startElection() {
 					go rf.sync(i)
 				}
 			}
-			//maybe you got uncommited entry in the log?
-			// ok but if you win this will be appended after any other server will accepnt nonempty heartbeat
-			// what if we stop before that? So better uncommented probably
-			//	but it gives weird races
-			// go notifyChannel(&rf.commitChannel, &rf.waitingToCommit)
+
 			return
 		}
 	}
