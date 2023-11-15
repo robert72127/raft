@@ -4,11 +4,8 @@ import (
 	"math/rand"
 	"sync"
 	"time"
-
-	"github.com/fatih/color"
 )
 
-const DEBUG_ELECTION = false
 const (
 	Follower  = "follower"
 	Leader    = "leader"
@@ -40,9 +37,7 @@ func (rf *Raft) waitElectionTime() {
 }
 
 func (rf *Raft) setFollower(correctTerm int) {
-	if DEBUG_ELECTION {
-		color.Magenta("MY ID IS %v I WAS TURNED INTO FOLLOWER :O GOT MESSAGE FROM TERM : %v, WHILE MINE WAS %v", rf.me, correctTerm, rf.currentTerm)
-	}
+
 	rf.state = Follower
 	rf.currentTerm = correctTerm
 	rf.my_election_Time = rand.Int63n(electionTimeHigh-electionTimeLow) + electionTimeLow
@@ -100,12 +95,7 @@ func (rf *Raft) ticker() {
 
 		// check if a leader election should
 		if time.Now().UnixMilli() > rf.last_heard+rf.my_election_Time && rf.state == Follower {
-			if DEBUG_ELECTION {
-				color.Magenta("////////////////////////////////////////////")
-				color.Magenta("Hadn't Hear from leader, starting election")
-				color.Magenta("MY INDEX: %v MY TERM WILL BE: %v", rf.me, rf.currentTerm+1)
-				color.Magenta("////////////////////////////////////////////")
-			}
+
 			rf.startElection()
 
 		} else {
@@ -121,12 +111,7 @@ func (rf *Raft) startElection() {
 	//update term
 	rf.mu.Lock()
 	rf.state = Candidate
-	rf.currentTerm += 1 // increment current term
-	if DEBUG_ELECTION {
-		color.Green("////////////////////////////////////////////////////////////////////")
-		color.Green("STARTING ELECTION, MY ID IS : %v, MY TERM IS :%v", rf.me, rf.currentTerm)
-		color.Green("////////////////////////////////////////////////////////////////////")
-	}
+	rf.currentTerm += 1                // increment current term
 	rf.vote.VotedTerm = rf.currentTerm // vote for self
 	rf.vote.Votedfor = rf.me
 	rf.mu.Unlock()
@@ -170,13 +155,7 @@ func (rf *Raft) startElection() {
 		if rf.state == Follower { // Was set by rpc from leader
 			return
 		} else if votes > len(rf.peers)/2 {
-			if DEBUG_LOGSYNC {
-				color.Yellow("*****************************************************************")
-				color.Yellow("Becoming leader\n")
-				color.Yellow("%v, got : %v  votes, out of : %v peers, in: %v term.\n", rf.me, votes, len(rf.peers), rf.currentTerm)
-				rf.PrintLog()
-				color.Yellow("*****************************************************************")
-			}
+
 			rf.mu.Lock()
 			rf.state = Leader
 			rf.isLeader = true

@@ -2,11 +2,8 @@ package raft
 
 import (
 	"time"
-
-	"github.com/fatih/color"
 )
 
-const DEBUG_LOGSYNC = false
 const (
 	//ms
 	heartBeatWaitTime = 150
@@ -33,14 +30,7 @@ type AppendEntriesReply struct {
 }
 
 func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply) {
-	if len(args.Entries) == 0 && DEBUG_LOGSYNC {
-		color.Red("\n_____________________________________________________________________")
-		color.Red("|----------Got HEARTBEAT :)----------------------------|")
-		color.Red("MY ID IS : %v GOT APPEND ENTRY, TERM %v| LEADERID %v| PREVLOGINDEX %v| PREVLOGTERM %v| LEADERCOMMIT %v", rf.me, args.Term, args.LeaderId, args.PrevLogIndex, args.PrevLogTerm, args.LeaderCommit)
-		color.Magenta("MY LOG : ")
-		rf.PrintLog()
-		color.Red("|-------------------------------------------------------------------\n")
-	}
+
 	rf.logMutex.Lock()
 	followerPrevLogEntry := rf.log[args.PrevLogIndex]
 	followerLogSize := len(rf.log)
@@ -55,10 +45,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 
 	//1
 	if args.Term < rf.currentTerm {
-		if DEBUG_LOGSYNC {
 
-			color.Red("GOT HEARTBEAT WITH TERM %v WHILE MY IS %v", args.Term, rf.currentTerm)
-		}
 		reply.Term = rf.currentTerm
 		return
 	}
@@ -90,24 +77,13 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		currentIndex += 1
 		followerLogSize = len(rf.log)
 
-		if DEBUG_LOGSYNC {
-			color.Red("|-------------------------------------------------------------------")
-			color.Red("|------Append entries---------------------------------------")
-			color.Red("MY ID IS : %v AND MY TERM IS: %v \nGOT APPEND ENTRY WITH: TERM %v| LEADERID %v| PREVLOGINDEX %v| PREVLOGTERM %v| LEADERCOMMIT %v", rf.me, rf.currentTerm, args.Term, args.LeaderId, args.PrevLogIndex, args.PrevLogTerm, args.LeaderCommit)
-			rf.PrintLog()
-		}
 		//3
 		// PROBLEM WHAT IF TERM IS DIFFERENT BUT SAME ENTRY AFTER REELECTION?
 
 		if followerLogSize >= currentIndex && rf.log[currentIndex].Term != entry.Term {
-			if DEBUG_LOGSYNC {
-				color.Red("WILL DELETE FEW ENTRIES")
-				color.Red("Conflict at index: %v Current: %v %v New: %v %v", currentIndex, rf.log[currentIndex].Term, rf.log[currentIndex].Command, args.PrevLogTerm, entry.Command)
-			}
+
 			for i := currentIndex; i <= followerLogSize; i++ {
-				if DEBUG_LOGSYNC {
-					color.Red("DELETE AT INDEX : %v WITH DATA: %v %v", i, rf.log[i].Term, rf.log[i].Command)
-				}
+
 				delete(rf.log, i)
 			}
 		}
@@ -116,12 +92,6 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		// check if index and term matches to ensure coherency
 		//append new entry
 		rf.log[currentIndex] = entry
-		if DEBUG_LOGSYNC {
-			color.Red("|------New entry applied!---------------------------------------")
-			color.Red("MY ID IS : %v GOT APPEND ENTRY, TERM %v| LEADERID %v| PREVLOGINDEX %v| PREVLOGTERM %v| ENTRY %v| LEADERCOMMIT %v", rf.me, args.Term, args.LeaderId, currentIndex-1, args.PrevLogTerm, entry, args.LeaderCommit)
-			rf.PrintLog()
-			color.Red("|-------------------------------------------------------------------")
-		}
 
 	}
 	rf.logMutex.Unlock()
@@ -138,10 +108,6 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			rf.commitIndex = args.LeaderCommit
 		}
 		rf.mu.Unlock()
-
-		if DEBUG_LOGSYNC {
-			color.Yellow("APPENDENTRY, INDEX(%v) SENDING NOTIFICATION TO COMMIT", rf.me)
-		}
 
 		go notifyChannel(&rf.commitChannel, &rf.waitingToCommit)
 	}
@@ -170,18 +136,8 @@ func (rf *Raft) sync(server int) {
 		entries := []LogEntry{}
 		for i := rf.nextIndex[server]; i <= len(rf.log); i++ {
 			entry := rf.log[i]
-			if DEBUG_LOGSYNC {
-				color.Cyan("ENTRY : %v\n", entry)
-			}
 
 			entries = append(entries, entry)
-		}
-
-		if DEBUG_LOGSYNC {
-			color.Green("___________________________________________________________________________________")
-			color.Green("|-------Sync METHOD Of leader %v--------------------------------------------", rf.me)
-			color.Green("NEXT INDEX OF THE SERVER IS :%v, LOG LEN IS %v", rf.nextIndex[server], len(rf.log))
-			//color.Green("TO SERVER ID: %v CURRENT INDEX: %v, ENTRY: %v", server, newEntryIndex, rf.log[newEntryIndex].Command)
 		}
 
 		appendArgs := &AppendEntriesArgs{
@@ -197,19 +153,9 @@ func (rf *Raft) sync(server int) {
 		rf.mu.Unlock()
 		appendReply := &AppendEntriesReply{}
 
-		if DEBUG_LOGSYNC {
-			if len(entries) > 0 {
-				color.Red("PREPARING TO SENT ENTRY TO SERVER :%v, TERM %v| LEADERID %v| PREVLOGINDEX %v| PREVLOGTERM %v| LEADERCOMMIT %v", server, appendArgs.Term, appendArgs.LeaderId, appendArgs.PrevLogIndex, appendArgs.PrevLogTerm, appendArgs.LeaderCommit)
-			} else {
-				color.Red("PREPARING TO SENT HEARTBEAT TO SERVER :%v, TERM %v| LEADERID %v| PREVLOGINDEX %v| PREVLOGTERM %v| LEADERCOMMIT %v", server, appendArgs.Term, appendArgs.LeaderId, appendArgs.PrevLogIndex, appendArgs.PrevLogTerm, appendArgs.LeaderCommit)
-
-			}
-		}
 		ok := rf.sendAppendEntries(server, appendArgs, appendReply)
 		if ok {
-			if DEBUG_LOGSYNC {
-				color.Green("METHOD SYNC INDEX %v GOT REPLY TERM %v AND SUCCES? : %v", server, appendReply.Term, appendReply.Success)
-			}
+
 			// got reply from server with higher term, become follower
 			// goroutines for other servers will eventualy caught up and return too
 			if appendReply.Term > rf.currentTerm {
@@ -220,10 +166,7 @@ func (rf *Raft) sync(server int) {
 				return
 				//succesful update
 			} else if appendReply.Success && appendReply.Term == rf.currentTerm {
-				if DEBUG_LOGSYNC {
-					color.Red("Got succesful reply from server %v", server)
-					color.Green("___________________________________________________________________________________")
-				}
+
 				//if heartbeat won't change anything as len(entries) will be 0
 				rf.replicaMutex.Lock()
 				for i := rf.nextIndex[server]; i < rf.nextIndex[server]+len(entries); i++ {
@@ -242,11 +185,6 @@ func (rf *Raft) sync(server int) {
 				// when appendentries consistency check fails decrement nextindex and try again
 			} else if !appendReply.Success && appendReply.Term == rf.currentTerm {
 
-				//color.Green("INDEX %v, FAILED MESSAGE WAS SENT BY SYNCLOGGER :)", server)
-				if DEBUG_LOGSYNC {
-					color.Red("Sending entry failed will try again with lower index")
-					color.Green("___________________________________________________________________________________")
-				}
 				if appendReply.CorrectNextIndex > 0 {
 					rf.mu.Lock()
 					rf.nextIndex[server] = appendReply.CorrectNextIndex

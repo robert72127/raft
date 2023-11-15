@@ -1,8 +1,7 @@
 package raft
 
 // this is an outline of the API that raft must expose to
-// the service (or tester). see comments below for
-// each of these functions for more details.
+// the service (or tester).
 //
 // rf = Make(...)
 //   create a new Raft server.
@@ -23,7 +22,6 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -33,8 +31,6 @@ import (
 
 	"github.com/fatih/color"
 )
-
-const DEBUG = false
 
 // as each Raft peer becomes aware that successive log entries are
 // committed, the peer should send an ApplyMsg to the service (or
@@ -214,10 +210,6 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 func (rf *Raft) commit(from int, to int) {
 	rf.logMutex.Lock()
 	for i := from + 1; i <= to; i++ {
-		if DEBUG_LOGSYNC {
-			log := fmt.Sprintf("INDEX : %v TERM : %v COMMAND : %v\n", i, rf.log[i].Term, rf.log[i].Command)
-			writeToFile("COMMITAPPLIER"+strconv.Itoa(rf.me), log)
-		}
 		command := rf.log[i].Command
 		rf.applyChannel <- ApplyMsg{CommandValid: true, Command: command, CommandIndex: i}
 	}
@@ -238,9 +230,6 @@ func (rf *Raft) CommitController() {
 				rf.logMutex.Unlock()
 
 				if iCount > len(rf.peers)/2 && iTerm == rf.currentTerm {
-					if DEBUG_LOGSYNC {
-						color.Yellow("LEADER HERE(%v) INDEX: %v  REPLICAATED ON : %v , OUT OF %v MACHINES, LOGLEN: %v, I %v, PREVCOMINDEX: %v", rf.me, i, rf.replicatedCnt[i], len(rf.peers), len(rf.log), i, prevcommitIndex)
-					}
 
 					rf.mu.Lock()
 					rf.commitIndex = i
@@ -251,9 +240,7 @@ func (rf *Raft) CommitController() {
 			}
 		}
 		if (!rf.isLeader && rf.commitIndex > prevcommitIndex) || rf.isLeader {
-			if DEBUG_LOGSYNC {
-				color.Yellow("FOLLOWER HERE(%v), WILL TRY TO COMMIT FROM INDEX %v TO INDEX %v", rf.me, prevcommitIndex, rf.commitIndex)
-			}
+
 			rf.mu.Lock()
 			rf.commit(prevcommitIndex, rf.commitIndex)
 			prevcommitIndex = rf.commitIndex
@@ -305,14 +292,6 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	rf.log[index] = newEntry
 	rf.logMutex.Unlock()
 	rf.persist()
-
-	if DEBUG_LOGSYNC {
-		color.Cyan("____________________________________________________________________________")
-		color.Blue("----------Leader: %v got client reqeuset: %v----------", rf.me, command)
-		color.Cyan("Leader log:")
-		rf.PrintLog()
-		color.Cyan("____________________________________________________________________________")
-	}
 
 	return index, rf.currentTerm, true
 }
