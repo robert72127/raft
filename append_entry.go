@@ -6,7 +6,7 @@ import (
 	"github.com/fatih/color"
 )
 
-const DEBUG_LOGSYNC = false
+const DEBUG_LOGSYNC = true
 const (
 	//ms
 	heartBeatWaitTime = 150
@@ -151,10 +151,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 
 func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, reply *AppendEntriesReply) bool {
 	ok := rf.peers[server].Call("Raft.AppendEntries", args, reply)
-	if ok == nil {
-		return true
-	}
-	return false
+	return ok
 }
 
 // spawned for each server on leader, sending appendentries to synchronize logs

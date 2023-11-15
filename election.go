@@ -8,7 +8,7 @@ import (
 	"github.com/fatih/color"
 )
 
-const DEBUG_ELECTION = false
+const DEBUG_ELECTION = true
 const (
 	Follower  = "follower"
 	Leader    = "leader"
@@ -91,7 +91,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 // Send request to all the other servers
 func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *RequestVoteReply) bool {
 	ok := rf.peers[server].Call("Raft.RequestVote", args, reply)
-	return (ok == nil)
+	return ok
 }
 
 // The ticker go routine starts a new election if this peer hasn't received heartsbeats recently.

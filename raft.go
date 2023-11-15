@@ -23,18 +23,17 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"raft/test/labgob"
+	"raft/test/labrpc"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"encoding/gob"
-	"net/rpc"
-
 	"github.com/fatih/color"
 )
 
-const DEBUG = false
+const DEBUG = true
 
 // as each Raft peer becomes aware that successive log entries are
 // committed, the peer should send an ApplyMsg to the service (or
@@ -55,11 +54,11 @@ type ApplyMsg struct {
 
 // A Go object implementing a single Raft peer.
 type Raft struct {
-	mu        sync.Mutex    // Lock to protect shared access to this peer's state
-	peers     []*rpc.Client // RPC end points of all peers
-	persister *Persister    // Object to hold this peer's persisted state
-	me        int           // this peer's index into peers[]
-	dead      int32         // set by Kill()
+	mu        sync.Mutex          // Lock to protect shared access to this peer's state
+	peers     []*labrpc.ClientEnd // RPC end points of all peers
+	persister *Persister          // Object to hold this peer's persisted state
+	me        int                 // this peer's index into peers[]
+	dead      int32               // set by Kill()
 
 	// state a Raft server must maintain.
 
@@ -149,7 +148,7 @@ func (rf *Raft) PrintLog() {
 func (rf *Raft) persist() {
 
 	w := new(bytes.Buffer)
-	e := gob.NewEncoder(w)
+	e := labgob.NewEncoder(w)
 	rf.mu.Lock()
 	e.Encode(rf.currentTerm)
 	e.Encode(rf.vote)
@@ -167,7 +166,7 @@ func (rf *Raft) readPersist(data []byte) {
 		return
 	}
 	r := bytes.NewBuffer(data)
-	d := gob.NewDecoder(r)
+	d := labgob.NewDecoder(r)
 	currentTerm := 0
 	votedFor := (Vote{})
 	log := (map[int]LogEntry{})
@@ -319,7 +318,7 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 
 // Make() must return quickly, so it should start goroutines
 // for any long-running work.
-func Make(peers []*rpc.Client, me int,
+func Make(peers []*labrpc.ClientEnd, me int,
 	persister *Persister, applyCh chan ApplyMsg) *Raft {
 	rf := &Raft{}
 	rf.peers = peers
